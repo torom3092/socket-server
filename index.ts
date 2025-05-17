@@ -1,4 +1,4 @@
-import express from "express";
+import express, { Request, Response } from "express";
 import { createServer } from "http";
 import { Server } from "socket.io";
 import cors from "cors";
@@ -32,9 +32,10 @@ io.on("connection", (socket) => {
 });
 
 app.use(cors());
-app.get("/", (_, res) => {
+app.get("/", (_: Request, res: Response) => {
   res.send("✅ Socket.io server running!");
 });
+``;
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
