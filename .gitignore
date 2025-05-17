@@ -4,7 +4,7 @@ node_modules/
 # 빌드 결과물
 dist/
 build/
-
+!build/lib/mongodb.js
 # 환경변수
 .env
 .env.local
