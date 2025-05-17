@@ -174,7 +174,7 @@ io.on("connection", (socket) => {
     state.teamPlayers[userId] ??= [];
     state.connectedUsers[userId] = { role, team };
 
-    // state.fullPlayerDataMap = await getAllPlayerStats();
+    state.fullPlayerDataMap = await getAllPlayerStats();
 
     io.emit("userListUpdate", state.connectedUsers);
   });
