@@ -2,7 +2,6 @@
   "name": "socket-server",
   "version": "1.0.0",
   "main": "index.ts",
-  "type": "module",
   "scripts": {
     "dev": "ts-node-dev index.ts",
     "start": "node build/index.js",
