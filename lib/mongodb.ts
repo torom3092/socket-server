@@ -2,12 +2,12 @@ import { MongoClient } from "mongodb";
 
 const uri = process.env.MONGODB_URI!;
 const client = new MongoClient(uri);
-let db: any;
+let db: ReturnType<MongoClient["db"]> | null = null;
 
 export async function connectToDB() {
   if (!db) {
-    await client.connect(); // 연결
-    db = client.db("내전GG"); // DB 이름
+    await client.connect();
+    db = client.db("내전GG");
   }
   return client;
 }
