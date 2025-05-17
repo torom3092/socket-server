@@ -21,14 +21,14 @@ export async function getAllPlayerStats() {
     const alias = player.name; // PLAYERS는 alias 기준으로 구성됨
     const nicknameList = aliasToNicknames[alias] ?? [alias];
 
-    const relevantMatches = allMatches.filter((match) => {
+    const relevantMatches = allMatches.filter((match:any) => {
       const year = new Date(match.gameDate).getFullYear();
       if (year !== 2025) return false;
       return match.participants?.some((p: any) => nicknameList.includes(p.name));
     });
 
     const totalGames = relevantMatches.length;
-    const winGames = relevantMatches.filter((match) => {
+    const winGames = relevantMatches.filter((match:any) => {
       const participant = match.participants.find((p: any) => nicknameList.includes(p.name));
       const winField = participant?.win;
       return winField === "Win" || winField === true || winField?.toLowerCase?.() === "win";
@@ -41,14 +41,14 @@ export async function getAllPlayerStats() {
     const laneGamesCount: Record<string, number> = {};
 
     for (const lane of lanes) {
-      const laneGames = relevantMatches.filter((match) => {
+      const laneGames = relevantMatches.filter((match:any) => {
         const participant = match.participants.find(
           (p: any) => nicknameList.includes(p.name) && p.position?.toUpperCase() === lane
         );
         return !!participant;
       });
 
-      const laneWins = laneGames.filter((match) => {
+      const laneWins = laneGames.filter((match:any) => {
         const participant = match.participants.find(
           (p: any) => nicknameList.includes(p.name) && p.position?.toUpperCase() === lane
         );
