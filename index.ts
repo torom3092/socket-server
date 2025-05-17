@@ -2,8 +2,8 @@ import express, { Request, Response } from "express";
 import { createServer } from "http";
 import { Server as IOServer } from "socket.io";
 import cors from "cors";
-import { PLAYERS, PlayerBasic } from "./lib/players.js";
-import { getAllPlayerStats } from "./lib/winrate.js";
+import { PLAYERS, PlayerBasic } from "./lib/players";
+import { getAllPlayerStats } from "./lib/winrate";
 const app = express();
 const server = createServer(app);
 const io = new IOServer(server, {
