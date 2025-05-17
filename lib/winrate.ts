@@ -1,5 +1,5 @@
 // lib/winrate.ts
-import { connectToDB } from "./mongodb";
+const { connectToDB } = require("./lib/mongodb");
 import { PLAYERS } from "./players";
 
 export async function getAllPlayerStats() {
