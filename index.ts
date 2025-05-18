@@ -4,7 +4,7 @@ import { createServer } from "http";
 import { Server as SocketIOServer } from "socket.io";
 import cors from "cors";
 import { PLAYERS, PlayerBasic } from "./lib/players";
-import { getAllPlayerStats } from "./lib/winrate";
+// import { getAllPlayerStats } from "./lib/winrate";
 
 const app = express();
 app.use(cors());
@@ -64,7 +64,10 @@ function emitCurrentPlayer() {
 function handlePlayerPassed() {
   if (state.currentPlayer) {
     state.passedPlayers.push(state.currentPlayer);
-    io.emit("playerPassedListUpdate", state.passedPlayers.map((p) => p.name));
+    io.emit(
+      "playerPassedListUpdate",
+      state.passedPlayers.map((p) => p.name)
+    );
   }
 
   if (state.playerQueue.length === 0) {
@@ -168,13 +171,12 @@ function startBidding() {
 }
 
 io.on("connection", (socket) => {
-  socket.on("join", async ({ userId, role, team }) => {
+  socket.on("join", async ({ userId, role, team , fullPlayerDataMap }) => {
     state.userSocketMap[userId] = socket.id;
     state.userPoints[userId] ??= 1000;
     state.teamPlayers[userId] ??= [];
     state.connectedUsers[userId] = { role, team };
-
-    state.fullPlayerDataMap = await getAllPlayerStats();
+    state.fullPlayerDataMap =  fullPlayerDataMap;
 
     io.emit("userListUpdate", state.connectedUsers);
   });
