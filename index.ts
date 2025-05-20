@@ -225,17 +225,18 @@ io.on("connection", (socket) => {
     //   return;
     // }
 
+    // 현재 입찰가보다 낮거나 같으면 거절
+    if (bid <= state.currentBid) {
+      socket.emit("bidRejected", { reason: "현재 입찰가보다 높은 금액을 입력해주세요." });
+      console.log(state.currentBid, "현재 입찰가보다 높은 금액을 입력해주세요.");
+      return;
+    }
+
     // 이미 유저가 가진 포인트보다 많은 금액이면 거절
     if (bid > point) {
       socket.emit("bidRejected", { reason: "포인트가 부족합니다." });
       return;
     }
-
-    // // 현재 입찰가보다 낮거나 같으면 거절
-    // if (bid <= state.currentBid) {
-    //   socket.emit("bidRejected", { reason: "현재 입찰가보다 높은 금액을 입력해주세요." });
-    //   return;
-    // }
 
     // 입찰 성공 처리
     state.currentBid = bid;
