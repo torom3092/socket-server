@@ -1,4 +1,3 @@
-// index.ts (standalone socket.io server)
 import express from "express";
 import { createServer } from "http";
 import { Server as SocketIOServer } from "socket.io";
@@ -220,20 +219,28 @@ io.on("connection", (socket) => {
   socket.on("bid", ({ userId, bid }) => {
     const point = state.userPoints[userId] ?? 0;
 
-    // 현재 입찰보다 낮거나 같은 금액은 거절
-    if (bid <= state.currentBid) {
-      socket.emit("bidRejected", { reason: "현재 입찰가보다 낮습니다." });
+    // 플레이어가 없으면 무시
+    if (!state.currentPlayer) {
+      socket.emit("bidRejected", { reason: "현재 경매 중인 플레이어가 없습니다." });
       return;
     }
 
+    // 이미 유저가 가진 포인트보다 많은 금액이면 거절
     if (bid > point) {
-      socket.emit("bidRejected", { reason: "포인트 부족" });
+      socket.emit("bidRejected", { reason: "포인트가 부족합니다." });
       return;
     }
 
+    // 현재 입찰가보다 낮거나 같으면 거절
+    if (bid <= state.currentBid) {
+      socket.emit("bidRejected", { reason: "현재 입찰가보다 높은 금액을 입력해주세요." });
+      return;
+    }
+
+    // 입찰 성공 처리
     state.currentBid = bid;
     state.currentBidder = userId;
-    state.remainingTime = 15;
+    state.remainingTime = 15; // 입찰이 들어오면 시간 초기화
 
     io.emit("updateBid", {
       bid,
@@ -302,3 +309,7 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
+
+// server.listen(3001, () => {
+//   console.log("🚀 로컬 개발용 소켓 서버 실행 중: http://localhost:3001");
+// });
