@@ -152,11 +152,7 @@ function startBidding() {
           name: player.name,
         });
 
-        if (
-          state.playerQueue.length === 0 &&
-          state.passedPlayers.length === 0 &&
-          state.isRetryingPassed
-        ) {
+        if (state.playerQueue.length === 0 && state.passedPlayers.length === 0 && state.isRetryingPassed) {
           io.emit("auctionEnd");
         } else {
           state.currentPlayer = state.playerQueue.shift() ?? null;
@@ -171,12 +167,12 @@ function startBidding() {
 }
 
 io.on("connection", (socket) => {
-  socket.on("join", async ({ userId, role, team , fullPlayerDataMap }) => {
+  socket.on("join", async ({ userId, role, team, fullPlayerDataMap }) => {
     state.userSocketMap[userId] = socket.id;
     state.userPoints[userId] ??= 1000;
     state.teamPlayers[userId] ??= [];
     state.connectedUsers[userId] = { role, team };
-    state.fullPlayerDataMap =  fullPlayerDataMap;
+    state.fullPlayerDataMap = fullPlayerDataMap;
 
     io.emit("userListUpdate", state.connectedUsers);
   });
@@ -223,6 +219,13 @@ io.on("connection", (socket) => {
 
   socket.on("bid", ({ userId, bid }) => {
     const point = state.userPoints[userId] ?? 0;
+
+    // 현재 입찰보다 낮거나 같은 금액은 거절
+    if (bid <= state.currentBid) {
+      socket.emit("bidRejected", { reason: "현재 입찰가보다 낮습니다." });
+      return;
+    }
+
     if (bid > point) {
       socket.emit("bidRejected", { reason: "포인트 부족" });
       return;
