@@ -17,6 +17,7 @@ const io = new SocketIOServer(server, {
 const state = {
   playerQueue: [...PLAYERS],
   passedPlayers: [] as PlayerBasic[],
+  passedPlayerDisplay: [] as PlayerBasic[], // UI에 보여줄 용도
   currentPlayer: null as PlayerBasic | null,
   currentBid: 0,
   remainingTime: 0,
@@ -86,6 +87,7 @@ function startCountdown() {
 function handlePlayerPassed() {
   if (state.currentPlayer) {
     state.passedPlayers.push(state.currentPlayer);
+    state.passedPlayerDisplay.push(state.currentPlayer);
     io.emit(
       "playerPassedListUpdate",
       state.passedPlayers.map((p) => p.name)
