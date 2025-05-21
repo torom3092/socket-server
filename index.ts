@@ -90,7 +90,7 @@ function handlePlayerPassed() {
     state.passedPlayerDisplay.push(state.currentPlayer);
     io.emit(
       "playerPassedListUpdate",
-      state.passedPlayers.map((p) => p.name)
+      state.passedPlayerDisplay.map((p) => p.name)
     );
   }
 
