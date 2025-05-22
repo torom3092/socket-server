@@ -1,22 +1,23 @@
-import express, { Request, Response } from "express";
+// ✅ 수정된 코드 + 5초 카운트다운 복원 포함
+
+import express from "express";
 import { createServer } from "http";
-import { Server as IOServer } from "socket.io";
+import { Server as SocketIOServer } from "socket.io";
 import cors from "cors";
-import { PLAYERS, PlayerBasic } from "./lib/players.js";
-import { getAllPlayerStats } from "./lib/winrate.js";
+import { PLAYERS, PlayerBasic } from "./lib/players";
+
 const app = express();
+app.use(cors());
+
 const server = createServer(app);
-const io = new IOServer(server, {
-  cors: {
-    origin: "*",
-  },
-  path: "/socket.io",
+const io = new SocketIOServer(server, {
+  cors: { origin: "*" },
 });
 
-// --- 전체 상태 객체 ---
 const state = {
   playerQueue: [...PLAYERS],
   passedPlayers: [] as PlayerBasic[],
+  passedPlayerDisplay: [] as PlayerBasic[], // UI에 보여줄 용도
   currentPlayer: null as PlayerBasic | null,
   currentBid: 0,
   remainingTime: 0,
@@ -42,26 +43,25 @@ function shuffleArray<T>(array: T[]): T[] {
   return result;
 }
 
-function emitAuctionSync(io: IOServer) {
+function emitAuctionSync() {
   const payload = {
     syncedTeams: state.teamPlayers,
     syncedBids: state.bidHistory,
     syncedHistory: state.historyEntries,
   };
-
   io.emit("auctionSync", payload);
   io.emit("teamPanelSync", payload);
 }
 
-function emitCurrentPlayer(io: IOServer) {
+function emitCurrentPlayer() {
   const nameKey = state.currentPlayer?.name.trim();
   const enriched = nameKey ? state.fullPlayerDataMap[nameKey] ?? {} : {};
   const fullPlayer = { ...state.currentPlayer, ...enriched };
-
   io.emit("initPlayer", fullPlayer);
   io.emit("showPlayer", fullPlayer);
 }
 
+<<<<<<< HEAD
 function handlePlayerPassed(io: IOServer) {
   if (state.currentPlayer) {
     state.passedPlayers.push(state.currentPlayer);
@@ -88,6 +88,9 @@ function handlePlayerPassed(io: IOServer) {
 }
 
 function startCountdown(io: IOServer) {
+=======
+function startCountdown() {
+>>>>>>> 7555ad8170be32b88cdfff1dc9764df5748d3264
   let count = 5;
   state.countdownTimer = setInterval(() => {
     io.emit("countdown", { count });
@@ -98,19 +101,45 @@ function startCountdown(io: IOServer) {
 
       state.currentPlayer = state.playerQueue.shift() ?? null;
       if (!state.currentPlayer) {
-        io.emit("countdown", { count: "모든 플레이어 경매 완료!" });
+        io.emit("auctionEnd");
         return;
       }
 
-      emitCurrentPlayer(io);
-      startBidding(io);
+      emitCurrentPlayer();
+      startBidding();
     }
 
     count -= 1;
   }, 1000);
 }
 
-function startBidding(io: IOServer) {
+function handlePlayerPassed() {
+  if (state.currentPlayer) {
+    state.passedPlayers.push(state.currentPlayer);
+    state.passedPlayerDisplay.push(state.currentPlayer);
+    io.emit(
+      "playerPassedListUpdate",
+      state.passedPlayerDisplay.map((p) => p.name)
+    );
+  }
+
+  if (state.playerQueue.length === 0) {
+    if (!state.isRetryingPassed) {
+      state.playerQueue = [...state.passedPlayers];
+      state.passedPlayers = [];
+      state.isRetryingPassed = true;
+      io.emit("reAuctionStarted");
+    } else {
+      io.emit("auctionEnd");
+      return;
+    }
+  }
+
+  state.currentPlayer = null;
+  io.emit("biddingEnded", { reason: "패스됨 - 다음 플레이어 수동 진행 필요" });
+}
+
+function startBidding() {
   state.currentBid = 0;
   state.currentBidder = null;
   state.remainingTime = 15;
@@ -130,49 +159,40 @@ function startBidding(io: IOServer) {
           id: state.currentPlayer?.id,
           name: state.currentPlayer?.name,
         });
-        handlePlayerPassed(io);
-      } else {
-        const team = state.currentBidder;
-        const player = state.currentPlayer!;
-        const bid = state.currentBid;
-
-        state.teamPlayers[team] ??= [];
-        state.teamPlayers[team].push(player);
-        state.userPoints[team] -= bid;
-
-        state.bidHistory[team] = (state.bidHistory[team] || 0) + bid;
-        state.historyEntries.push({ player, team, bid });
-
-        emitAuctionSync(io);
-
-        io.emit("playerDrafted", {
-          id: player.id,
-          name: player.name,
-        });
-
-        if (state.playerQueue.length === 0 && state.passedPlayers.length === 0 && state.isRetryingPassed) {
-          io.emit("auctionEnd");
-        } else {
-          state.currentPlayer = state.playerQueue.shift() ?? null;
-          if (state.currentPlayer) {
-            emitCurrentPlayer(io);
-            startBidding(io);
-          }
-        }
+        handlePlayerPassed();
+        return;
       }
+
+      const team = state.currentBidder;
+      const player = state.currentPlayer!;
+      const bid = state.currentBid;
+
+      state.teamPlayers[team] ??= [];
+      state.teamPlayers[team].push(player);
+      state.userPoints[team] -= bid;
+      state.bidHistory[team] = (state.bidHistory[team] || 0) + bid;
+      state.historyEntries.push({ player, team, bid });
+
+      emitAuctionSync();
+
+      io.emit("playerDrafted", {
+        id: player.id,
+        name: player.name,
+      });
+
+      state.currentPlayer = null;
+      io.emit("biddingEnded", { reason: "낙찰 완료 - 다음 플레이어 수동 진행 필요" });
     }
   }, 1000);
 }
 
 io.on("connection", (socket) => {
-  socket.on("join", async ({ userId, role, team }) => {
+  socket.on("join", ({ userId, role, team, fullPlayerDataMap }) => {
     state.userSocketMap[userId] = socket.id;
     state.userPoints[userId] ??= 1000;
     state.teamPlayers[userId] ??= [];
     state.connectedUsers[userId] = { role, team };
-
-    state.fullPlayerDataMap = await getAllPlayerStats();
-
+    state.fullPlayerDataMap = fullPlayerDataMap;
     io.emit("userListUpdate", state.connectedUsers);
   });
 
@@ -181,15 +201,13 @@ io.on("connection", (socket) => {
     state.userPoints[userId] ??= 1000;
     state.teamPlayers[userId] ??= [];
     state.connectedUsers[userId] = { role, team };
-
     io.emit("userJoined", { userId, role, team });
     io.emit("userListUpdate", state.connectedUsers);
   });
 
   socket.on("startAuction", () => {
-    clearInterval(state.countdownTimer!);
     clearInterval(state.biddingTimer!);
-
+    clearInterval(state.countdownTimer!);
     state.playerQueue = shuffleArray([...PLAYERS]);
     state.passedPlayers = [];
     state.currentPlayer = null;
@@ -197,77 +215,66 @@ io.on("connection", (socket) => {
     state.bidHistory = {};
     state.historyEntries = [];
     state.isRetryingPassed = false;
-
-    emitAuctionSync(io);
-    startCountdown(io);
+    emitAuctionSync();
+    startCountdown();
   });
 
   socket.on("nextPlayer", () => {
-    clearInterval(state.countdownTimer!);
     clearInterval(state.biddingTimer!);
-
+    clearInterval(state.countdownTimer!);
     state.currentPlayer = state.playerQueue.shift() ?? null;
     if (!state.currentPlayer) {
-      io.emit("countdown", { count: "모든 플레이어 경매 완료!" });
+      io.emit("auctionEnd");
       return;
     }
-
-    emitCurrentPlayer(io);
-    startBidding(io);
+    emitCurrentPlayer();
+    startBidding();
   });
 
   socket.on("bid", ({ userId, bid }) => {
     const point = state.userPoints[userId] ?? 0;
-    if (bid > point) {
-      socket.emit("bidRejected", { reason: "포인트 부족" });
+    if (!state.currentPlayer) {
+      socket.emit("bidRejected", { reason: "현재 경매 중인 플레이어가 없습니다." });
       return;
     }
-
+    if (bid <= state.currentBid) {
+      socket.emit("bidRejected", { reason: "현재 입찰가보다 높은 금액을 입력해주세요." });
+      return;
+    }
+    if (bid > point) {
+      socket.emit("bidRejected", { reason: "포인트가 부족합니다." });
+      return;
+    }
     state.currentBid = bid;
     state.currentBidder = userId;
     state.remainingTime = 15;
-
-    io.emit("updateBid", {
-      bid,
-      userId,
-      currentPlayer: state.currentPlayer,
-    });
-
-    io.emit("pointUpdate", {
-      userId,
-      point: point - bid,
-    });
+    io.emit("updateBid", { bid, userId, currentPlayer: state.currentPlayer });
+    io.emit("pointUpdate", { userId, point: point - bid });
   });
 
   socket.on("requestInit", ({ userId }) => {
     const socketId = state.userSocketMap[userId];
-
-    if (!socketId) {
-      console.warn("❌ socketId 없음! userSocketMap에 등록 안 됨");
-      return;
-    }
-
+    if (!socketId) return;
     io.to(socketId).emit("auctionSync", {
       teams: state.teamPlayers,
       bidHistory: state.bidHistory,
       history: state.historyEntries,
     });
-
     io.to(socketId).emit("userListUpdate", state.connectedUsers);
-
     if (state.currentPlayer) {
       const enriched = state.fullPlayerDataMap[state.currentPlayer.name] ?? {};
       const fullPlayer = { ...state.currentPlayer, ...enriched };
       io.to(socketId).emit("initPlayer", fullPlayer);
     }
-
-    io.to(socketId).emit("playerPassedListUpdate", state.passedPlayers.map((p) => p.name));
+    io.to(socketId).emit(
+      "playerPassedListUpdate",
+      state.passedPlayers.map((p) => p.name)
+    );
   });
 
   socket.on("resetAuction", () => {
-    clearInterval(state.countdownTimer!);
     clearInterval(state.biddingTimer!);
-
+    clearInterval(state.countdownTimer!);
     state.playerQueue = [...PLAYERS];
     state.passedPlayers = [];
     state.currentPlayer = null;
@@ -280,16 +287,14 @@ io.on("connection", (socket) => {
     state.historyEntries = [];
     state.remainingTime = 0;
     state.isRetryingPassed = false;
-
-    emitAuctionSync(io);
+    emitAuctionSync();
     io.emit("auctionReset");
     io.emit("playerPassedListUpdate", []);
   });
 });
 
-app.use(cors());
-app.get("/", (_: Request, res: Response) => {
-  res.send("✅ Socket.io server running!");
+app.get("/", (_, res) => {
+  res.send("✅ socket-server is running");
 });
 
 const PORT = process.env.PORT || 3000;
