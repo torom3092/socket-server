@@ -84,7 +84,7 @@ function handlePlayerPassed(io: IOServer) {
     return;
   }
   emitCurrentPlayer(io);
-  startBidding(io);
+  // startBidding(io);
 }
 
 function startCountdown(io: IOServer) {
