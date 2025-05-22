@@ -34,6 +34,28 @@ const state = {
   isRetryingPassed: false,
 };
 
+function startCountdown() {
+  let count = 5;
+  state.countdownTimer = setInterval(() => {
+    io.emit("countdown", { count });
+
+    if (count === 0) {
+      clearInterval(state.countdownTimer!);
+      io.emit("countdown", { count: "" });
+
+      state.currentPlayer = state.playerQueue.shift() ?? null;
+      if (!state.currentPlayer) {
+        io.emit("auctionEnd");
+        return;
+      }
+
+      emitCurrentPlayer(); // 👉 입찰은 시작 안 함 (버튼 따로)
+    }
+
+    count -= 1;
+  }, 1000);
+}
+
 function shuffleArray<T>(array: T[]): T[] {
   const result = [...array];
   for (let i = result.length - 1; i > 0; i--) {
@@ -169,6 +191,7 @@ io.on("connection", (socket) => {
     state.historyEntries = [];
     state.isRetryingPassed = false;
     emitAuctionSync();
+    startCountdown();
   });
 
   socket.on("nextPlayer", () => {
@@ -193,11 +216,15 @@ io.on("connection", (socket) => {
   socket.on("bid", ({ userId, bid }) => {
     const point = state.userPoints[userId] ?? 0;
     if (!state.currentPlayer) {
-      socket.emit("bidRejected", { reason: "현재 경매 중인 플레이어가 없습니다." });
+      socket.emit("bidRejected", {
+        reason: "현재 경매 중인 플레이어가 없습니다.",
+      });
       return;
     }
     if (bid <= state.currentBid) {
-      socket.emit("bidRejected", { reason: "현재 입찰가보다 높은 금액을 입력해주세요." });
+      socket.emit("bidRejected", {
+        reason: "현재 입찰가보다 높은 금액을 입력해주세요.",
+      });
       return;
     }
     if (bid > point) {
