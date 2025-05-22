@@ -155,7 +155,10 @@ function startBidding() {
         name: player.name,
       });
 
-      handlePlayerPassed();
+      io.emit("chatMessage", "----------");
+
+     
+      state.currentPlayer = null;
     }
   }, 1000);
 }
