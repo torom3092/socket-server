@@ -61,36 +61,7 @@ function emitCurrentPlayer() {
   io.emit("showPlayer", fullPlayer);
 }
 
-<<<<<<< HEAD
-function handlePlayerPassed(io: IOServer) {
-  if (state.currentPlayer) {
-    state.passedPlayers.push(state.currentPlayer);
-    io.emit("playerPassedListUpdate", state.passedPlayers.map((p) => p.name));
-  }
-
-  if (state.playerQueue.length === 0) {
-    if (!state.isRetryingPassed) {
-      state.playerQueue = [...state.passedPlayers];
-      state.isRetryingPassed = true;
-    } else {
-      io.emit("auctionEnd");
-      return;
-    }
-  }
-
-  state.currentPlayer = state.playerQueue.shift() ?? null;
-  if (!state.currentPlayer) {
-    io.emit("auctionEnd");
-    return;
-  }
-  emitCurrentPlayer(io);
-  // startBidding(io);
-}
-
-function startCountdown(io: IOServer) {
-=======
 function startCountdown() {
->>>>>>> 7555ad8170be32b88cdfff1dc9764df5748d3264
   let count = 5;
   state.countdownTimer = setInterval(() => {
     io.emit("countdown", { count });
@@ -106,7 +77,7 @@ function startCountdown() {
       }
 
       emitCurrentPlayer();
-      startBidding();
+      // startBidding();
     }
 
     count -= 1;
