@@ -1,4 +1,4 @@
-// ✅ 수정된 코드 + 5초 카운트다운 복원 포함
+// ✅ 다음 플레이어와 입찰 시작을 분리한 코드
 
 import express from "express";
 import { createServer } from "http";
@@ -17,7 +17,7 @@ const io = new SocketIOServer(server, {
 const state = {
   playerQueue: [...PLAYERS],
   passedPlayers: [] as PlayerBasic[],
-  passedPlayerDisplay: [] as PlayerBasic[], // UI에 보여줄 용도
+  passedPlayerDisplay: [] as PlayerBasic[],
   currentPlayer: null as PlayerBasic | null,
   currentBid: 0,
   remainingTime: 0,
@@ -61,29 +61,6 @@ function emitCurrentPlayer() {
   io.emit("showPlayer", fullPlayer);
 }
 
-function startCountdown() {
-  let count = 5;
-  state.countdownTimer = setInterval(() => {
-    io.emit("countdown", { count });
-
-    if (count === 0) {
-      clearInterval(state.countdownTimer!);
-      io.emit("countdown", { count: "" });
-
-      state.currentPlayer = state.playerQueue.shift() ?? null;
-      if (!state.currentPlayer) {
-        io.emit("auctionEnd");
-        return;
-      }
-
-      emitCurrentPlayer();
-      // startBidding();
-    }
-
-    count -= 1;
-  }, 1000);
-}
-
 function handlePlayerPassed() {
   if (state.currentPlayer) {
     state.passedPlayers.push(state.currentPlayer);
@@ -106,8 +83,13 @@ function handlePlayerPassed() {
     }
   }
 
-  state.currentPlayer = null;
-  io.emit("biddingEnded", { reason: "패스됨 - 다음 플레이어 수동 진행 필요" });
+  state.currentPlayer = state.playerQueue.shift() ?? null;
+  if (!state.currentPlayer) {
+    io.emit("auctionEnd");
+    return;
+  }
+
+  emitCurrentPlayer();
 }
 
 function startBidding() {
@@ -151,8 +133,7 @@ function startBidding() {
         name: player.name,
       });
 
-      state.currentPlayer = null;
-      io.emit("biddingEnded", { reason: "낙찰 완료 - 다음 플레이어 수동 진행 필요" });
+      handlePlayerPassed();
     }
   }, 1000);
 }
@@ -181,13 +162,13 @@ io.on("connection", (socket) => {
     clearInterval(state.countdownTimer!);
     state.playerQueue = shuffleArray([...PLAYERS]);
     state.passedPlayers = [];
+    state.passedPlayerDisplay = [];
     state.currentPlayer = null;
     state.teamPlayers = {};
     state.bidHistory = {};
     state.historyEntries = [];
     state.isRetryingPassed = false;
     emitAuctionSync();
-    startCountdown();
   });
 
   socket.on("nextPlayer", () => {
@@ -199,6 +180,13 @@ io.on("connection", (socket) => {
       return;
     }
     emitCurrentPlayer();
+  });
+
+  socket.on("startBidding", () => {
+    if (!state.currentPlayer) {
+      socket.emit("biddingError", { reason: "진행 중인 플레이어가 없습니다." });
+      return;
+    }
     startBidding();
   });
 
@@ -239,7 +227,7 @@ io.on("connection", (socket) => {
     }
     io.to(socketId).emit(
       "playerPassedListUpdate",
-      state.passedPlayers.map((p) => p.name)
+      state.passedPlayerDisplay.map((p) => p.name)
     );
   });
 
@@ -248,6 +236,7 @@ io.on("connection", (socket) => {
     clearInterval(state.countdownTimer!);
     state.playerQueue = [...PLAYERS];
     state.passedPlayers = [];
+    state.passedPlayerDisplay = [];
     state.currentPlayer = null;
     state.currentBid = 0;
     state.currentBidder = null;
