@@ -14,6 +14,7 @@ const io = new SocketIOServer(server, {
   cors: { origin: "*" },
 });
 
+let auctionStarted = false;
 const state = {
   playerQueue: [...PLAYERS],
   passedPlayers: [] as PlayerBasic[],
@@ -190,6 +191,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("startAuction", () => {
+    auctionStarted = true;
     clearInterval(state.biddingTimer!);
     clearInterval(state.countdownTimer!);
     state.playerQueue = shuffleArray([...PLAYERS]);
@@ -218,9 +220,12 @@ io.on("connection", (socket) => {
 
     emitAuctionSync();
     startCountdown();
+    auctionStarted = false;
   });
 
   socket.on("nextPlayer", () => {
+    if (!auctionStarted) return;
+
     clearInterval(state.biddingTimer!);
     clearInterval(state.countdownTimer!);
     state.currentPlayer = state.playerQueue.shift() ?? null;
@@ -310,6 +315,7 @@ io.on("connection", (socket) => {
     io.emit("auctionReset");
     io.emit("playerPassedListUpdate", []);
   });
+  auctionStarted = false;
 });
 
 app.get("/", (_, res) => {
