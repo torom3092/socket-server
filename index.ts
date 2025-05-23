@@ -1,5 +1,3 @@
-// ✅ 다음 플레이어와 입찰 시작을 분리한 코드 + 포인트 초기화 및 입찰자만 포인트 감소 적용
-
 import express from "express";
 import { createServer } from "http";
 import { Server as SocketIOServer } from "socket.io";
@@ -166,7 +164,7 @@ function startBidding() {
         });
       }
 
-      state.currentPlayer = null;
+      // state.currentPlayer = null;
     }
   }, 1000);
 }
