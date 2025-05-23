@@ -45,6 +45,7 @@ function startCountdown() {
       state.currentPlayer = state.playerQueue.shift() ?? null;
       if (!state.currentPlayer) {
         io.emit("auctionEnd");
+        auctionStarted = false;
         return;
       }
 
@@ -100,6 +101,7 @@ function handlePlayerPassed() {
       io.emit("reAuctionStarted");
     } else {
       io.emit("auctionEnd");
+      auctionStarted = false;
       return;
     }
   }
@@ -107,6 +109,7 @@ function handlePlayerPassed() {
   state.currentPlayer = state.playerQueue.shift() ?? null;
   if (!state.currentPlayer) {
     io.emit("auctionEnd");
+    auctionStarted = false;
     return;
   }
 
@@ -164,7 +167,7 @@ function startBidding() {
         });
       }
 
-      // state.currentPlayer = null;
+      state.currentPlayer = null; // ✅ 복원
     }
   }, 1000);
 }
@@ -172,7 +175,7 @@ function startBidding() {
 io.on("connection", (socket) => {
   socket.on("join", ({ userId, role, team, fullPlayerDataMap }) => {
     state.userSocketMap[userId] = socket.id;
-    state.userPoints[userId] = 1000; // ✅ 항상 초기화
+    state.userPoints[userId] = 1000;
     state.teamPlayers[userId] ??= [];
     state.connectedUsers[userId] = { role, team };
     state.fullPlayerDataMap = fullPlayerDataMap;
@@ -181,7 +184,7 @@ io.on("connection", (socket) => {
 
   socket.on("reconfirmJoin", ({ userId, role, team }) => {
     state.userSocketMap[userId] = socket.id;
-    state.userPoints[userId] = 1000; // ✅ 항상 초기화
+    state.userPoints[userId] = 1000;
     state.teamPlayers[userId] ??= [];
     state.connectedUsers[userId] = { role, team };
     io.emit("userJoined", { userId, role, team });
@@ -204,7 +207,6 @@ io.on("connection", (socket) => {
     state.currentBidder = null;
     state.isRetryingPassed = false;
 
-    // ✅ 모든 사용자 포인트 초기화
     Object.keys(state.userPoints).forEach((userId) => {
       state.userPoints[userId] = 1000;
       const socketId = state.userSocketMap[userId];
@@ -218,7 +220,6 @@ io.on("connection", (socket) => {
 
     emitAuctionSync();
     startCountdown();
-    auctionStarted = false;
   });
 
   socket.on("nextPlayer", () => {
@@ -226,9 +227,11 @@ io.on("connection", (socket) => {
 
     clearInterval(state.biddingTimer!);
     clearInterval(state.countdownTimer!);
+
     state.currentPlayer = state.playerQueue.shift() ?? null;
     if (!state.currentPlayer) {
       io.emit("auctionEnd");
+      auctionStarted = false;
       return;
     }
     emitCurrentPlayer();
@@ -306,6 +309,8 @@ io.on("connection", (socket) => {
     state.historyEntries = [];
     state.remainingTime = 0;
     state.isRetryingPassed = false;
+    auctionStarted = false;
+
     Object.keys(state.userPoints).forEach((userId) => {
       state.userPoints[userId] = 1000;
     });
@@ -313,7 +318,6 @@ io.on("connection", (socket) => {
     io.emit("auctionReset");
     io.emit("playerPassedListUpdate", []);
   });
-  auctionStarted = false;
 });
 
 app.get("/", (_, res) => {
