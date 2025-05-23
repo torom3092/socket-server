@@ -136,7 +136,20 @@ function startBidding() {
           id: state.currentPlayer?.id,
           name: state.currentPlayer?.name,
         });
-        handlePlayerPassed();
+
+        //  자동 다음 플레이어 제거
+        // handlePlayerPassed();
+
+        //  그냥 대기 상태로 전환
+        state.passedPlayers.push(state.currentPlayer!);
+        state.passedPlayerDisplay.push(state.currentPlayer!);
+
+        io.emit(
+          "playerPassedListUpdate",
+          state.passedPlayerDisplay.map((p) => p.name)
+        );
+
+        state.currentPlayer = null;
         return;
       }
 
