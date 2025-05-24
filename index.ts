@@ -119,7 +119,7 @@ function handlePlayerPassed() {
 function startBidding() {
   state.currentBid = 0;
   state.currentBidder = null;
-  state.remainingTime = 3;
+  state.remainingTime = 15;
 
   io.emit("startBidding");
 
